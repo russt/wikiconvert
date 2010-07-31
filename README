@@ -1,3 +1,5 @@
+INTRODUCTION
+
 This is a little project to convert vqwiki (http://www.vqwiki.org/) source content
 to MediaWiki (http://www.mediawiki.org/) content.
 
@@ -23,9 +25,11 @@ convert what I call "wiki intermediate form" (wif) to some other syntax:
 This is the idea behind many wiki translators, and indeed there is a standard
 that has been developed called Creole (http://www.wikicreole.org/) as an attempt
 to standardize wiki syntaxes, or at the very least, provide a method that wiki
-implementors can use to translate to a standardized intermediate form.
+implementers can use to translate to a standardized intermediate form.
 
-The conversion is implemented in a language called "Cado", which I invented in 2003,
+IMPLEMENTATION
+
+This conversion is implemented in a language called "Cado", which I invented in 2003,
 and have used and extended over the last several years to solve many interesting
 translation and code-generation problems.
 
@@ -66,7 +70,7 @@ the range of lines we want to operate on with a g// pattern, and then process a 
 those lines.  With Cado specifications, we can have even finer grained control, since we are not limited
 to line-based operations.
 
-Another thing to be aware of when reading the substitution expressions, is to note the
+Another thing to be aware of, when reading the substitution expressions, is the
 order in which things occur.  In the above expressions, for example, $UNIVTOK and ${DS} are
 interpolated by Cado before the resulting substitution expression is passed to Perl.
 (This is because I used the "=" operator instead of the ":=" operator, the latter of
@@ -76,19 +80,23 @@ HOW TO START:
 
 First, you must get your vqwiki into file-based content.  This may involve writing a bit
 of sql.  In my case, I have always used file-based persistence.  You might try a vqwiki
-testbed starting with file-based to avoid the initial problem of extracting your content
-from your database.  I.e., fire up a file-base vqwiki and then just cut/paste a few
-pages from your original vqwiki instance.
+testbed starting with file-based persistence, to avoid the initial problem of extracting
+your content from your database.  I.e., fire up a file-base vqwiki and then just cut/paste a few
+pages from your original, database-persisted vqwiki instance.
+
+Of course you can also paste content directly into files and save them to disk, under the topic
+names you want to translate.
 
 Once you have your content in some files, examine the script "convert.sh", which converts a
-list of topics that you provide.  Note all the test topics I have commented out - you can modify
-the script to just try a couple of your topics to verify the translator.
+list of topics that you provide.  Note the many test topics I have commented out - you can modify
+the script to just try a couple of your topics in a similar fashion, to get a handle on the
+translation process.
 
-Second, you will need an instance of a wiki that purports to understand MediaWiki syntax, in
-order to observe the results of the translation.  In my case, I used a lovely little wiki called
-JAMWiki (http://jamwiki.org/), since it is fully java and can be dropped into a Tomcat
-instance and be up and running in a few minutes.  If you are already running vqwiki under Tomcat,
-then this is a nice setup.
+Second, you will need an instance of a wiki that purports to understand MediaWiki syntax, to
+observe the rendering of your translated pages.  In my case, I used a lovely little wiki called
+JAMWiki (http://jamwiki.org/).  JAMWiki is implemented using java servlet technology,
+and so its war bundle can be dropped, for example, into a Tomcat instance, and be up and running
+very quickly.  You may be able to use the same container as your vqwiki instance.
 
 AUTOMATIC POSTING VIA CURL TO JAMWIKI
 
@@ -102,7 +110,7 @@ If you do want to try out automated posting, you will need to provide the url of
 local JAMWiki instance in the variable $TOPIC_BASE_URL in convert.sh.
 If you have a troublesome page that is not getting loaded, then try that topic
 alone and examine the files in bld/edit/*, to see if you can gets some hints of
-what went wrong.  One thing that will go wrong, is the SPAM filter provided by
+what went wrong.  One thing that will go wrong, is the spam filter provided by
 JAMWiki will likely interfere with content containing html.  Go to the JAMWiki
 configuration page and disable the spam filter (you may want to enable it again
 later if your JAMWiki is external facing).
@@ -120,10 +128,10 @@ regular MediaWiki external topic links.
 NOT HANDLED
 
 At this time, I am not handling upload artifacts, or image-linked urls.  If you have a large
-amount of embedded [<java>] or [<html>] tags, it will be preserved but will not be rendered
+amount of embedded [<java>] or [<html>] tags, the content will be preserved but will not be rendered
 as vqwiki does.  This is an area where vqwiki is ahead of the curve.  Another area is that
 vqwiki will render images inline, and so any pictures you are expecting in your content will
-have to be uploaded and converted to local references if you want the same effect.
+have to be uploaded and converted to local references to achieve the same effect.
 
 Linking property prefixes containing dash ("-") or other non-alphanumeric characters, are not
 currently handled properly.
