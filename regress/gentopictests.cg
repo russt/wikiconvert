@@ -1,0 +1,96 @@
+#
+# Copyright (C) 2010 Russ Tremain.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0 or later.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Artistic License 2.0 for more details.
+#
+# You should have received a copy of the Artistic License the file
+# LICENSE.  If not, see:
+#     <http://www.perlfoundation.org/artistic_license_2_0>
+#
+
+#generate the test ksh wrappers
+#Usage:  cado -cgroot . create_wrappers.cg
+#        do not pass -u unless you want to re-write the wrapper(s).
+
+%ifndef CG_ROOT  CG_ROOT=bld
+
+{
+KSH_WRAPPER := << EOF
+#!/bin/sh
+#{=TEST_BASENAME=} - comment
+
+TESTNAME={=TEST_BASENAME=}
+echo TESTNAME is $TESTNAME
+. ./regress_defs.ksh
+
+cado -u -cgroot $REGRESS_CG_ROOT -DTESTNAME=$TESTNAME $TESTNAME.cg
+EOF
+}
+
+{
+CGTEST_SCRIPT := << EOF
+TOPIC_ORIGINAL = {=theTopicFn=}
+%include wikiconvert00001.cg
+EOF
+}
+
+{
+CGTEST_REF := << EOF
+TESTNAME is {=TEST_BASENAME=}
+GENERATING INTERMEDIATE FORM:
+echo -> ../bld/cgtstroot/wif/{=$theTopicFn:basename=}
+GENERATING NEW ORIGINAL FROM INTERMEDIATE FORM:
+echo -> ../bld/cgtstroot/vq_redux/{=$theTopicFn:basename=}
+diff -wbc ORIGINAL CONVERTED
+EOF
+}
+
+emit_wrapper := << EOF
+{
+    TEST_BASENAME = ${TEST_PREFIX}00${TNUM}
+
+    #%echo Emitting wrapper $TNUM
+    %evalmacro ECHO_TXT KSH_WRAPPER
+    echo	/$TEST_BASENAME.ksh
+
+    %evalmacro ECHO_TXT CGTEST_SCRIPT
+    echo	/$TEST_BASENAME.cg
+
+    %evalmacro ECHO_TXT CGTEST_REF
+    echo	/$TEST_BASENAME.ref
+}
+EOF
+
+loop := << EOF
+{
+    %shift theTopicFn vqpages
+#%echo TNUM=$TNUM theTopicFn='$theTopicFn'
+
+    %call emit_wrapper
+
+    TNUM = $TNUM:incr
+}
+EOF
+
+#####
+#read in vqpages:
+#####
+
+#%readtemplate vqpages alltopics.txt
+%readtemplate vqpages testtopics.txt
+#%readtemplate vqpages failedtopics.txt
+
+vqpages = $vqpages:trim:split
+
+%echo size= $vqpages:stacksize
+
+TEST_PREFIX = wikiconvert
+TNUM = 005
+egrange = 01..$vqpages:stacksize
+%foreach ii egrange %call loop

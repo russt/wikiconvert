@@ -1,0 +1,102 @@
+#
+# Copyright (C) 2010 Russ Tremain.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0 or later.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Artistic License 2.0 for more details.
+#
+# You should have received a copy of the Artistic License the file
+# LICENSE.  If not, see:
+#     <http://www.perlfoundation.org/artistic_license_2_0>
+#
+
+#
+#wif2vq.cg - convert a topic in wiki intermediate form to vqwiki form.
+#
+
+%ifndef CG_ROOT CG_ROOT = bld/mediawiki
+
+%include mediawiki.defs
+
+init_globals := << //
+{
+    #universal token to temporarily delimit our parsable items.
+    #set to ascii formfeed (^L).
+    UNIVTOK = $HEX_0C:nameof:hexdecode
+    #set to ascii BELL (^G):
+    UNIVTOK2 = $HEX_07:nameof:hexdecode
+
+    #other possibilities:  \x1b esc, \x7f del
+
+    DS := $
+#%eecho DS='$DS' UNIVTOK='$UNIVTOK'
+
+    tab = $tab:clr:tab
+    nl = $nl:clr:newline
+}
+//
+
+mediawiki_edits := << //
+#perform special edits on WIF form before we do the convertions.
+#in particular, convert html one-line hrefs to named wiki topics.
+{
+    #example input:  {=VQ_HTML_LQ=}<A HREF="http://www.cnn.com/">CNN</A>{=VQ_HTML_RQ=}
+    #example output: {=MW_EXTERNAL_LQ=}http://www.cnn.com/ CNN{=MW_EXTERNAL_RQ=}
+
+    #should be used with ignore-case option:
+    href_pattern := <a\s+href\s*=\s*"([^"]*)"\s*>([^<]*)<\/?a>
+
+    CG_MATCH_SPEC = /{=VQ_HTML_LQ=}\s*$href_pattern\s*{=VQ_HTML_RQ=}/i
+    %ifnot $INPUT:match %return
+
+    CG_SUBSTITUTE_SPEC = s/({=VQ_HTML_LQ=}|{=VQ_HTML_RQ=})/$UNIVTOK/gs
+    %void $INPUT:substitute:assign
+
+    #must match only one href:
+    CG_SUBSTITUTE_SPEC2 := s/^\s*<a\s+href\s*=\s*"([^"]*)"\s*>([^<]*)<\/?a>\s*$/$1 $2/igs
+    CG_SUBSTITUTE_SPEC  = s/$UNIVTOK([^$UNIVTOK]*)$UNIVTOK/sprintf("{=MW_EXTERNAL_LQ=}%s{=MW_EXTERNAL_RQ=}", &s2_op(${DS}1))/egs
+    %void $INPUT:substitute:assign
+
+ECHO_TXT=$INPUT
+echo	/mediawiki_edits01.txt
+}
+//
+
+##################################### MAIN #####################################
+
+%call init_globals
+WIFDIR = bld/cgtstroot/wif
+
+%ifndef TOPIC_INFILE  TOPIC_INFILE = bld/wif/MyLeftMenu.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = $WIFDIR/wikiconvert00002.txt
+
+#convert TOPIC to standard form, as it is written out by vq2toc:
+CG_SUBSTITUTE_SPEC = s/\+/ /g
+TOPIC_IN = $TOPIC_INFILE:basename:root:substitute:urldecode:urlencode
+TOPIC_INFILE = ${TOPIC_INFILE:dirname}/${TOPIC_IN}.txt
+
+###### exit if file not found:
+%ifnot $TOPIC_INFILE:r %return -e -s 1 ${CG_INFILE}:  cannot open '$TOPIC_INFILE' - abort.
+
+#read in and evaluate the file in the presence of the vqwiki defs:
+%readtemplate INPUT $TOPIC_INFILE
+
+#mark VQ_HTML variables as reflexive, and eval the rest:
+VQ_HTML_LQ := {=VQ_HTML_LQ=}
+VQ_HTML_RQ := {=VQ_HTML_RQ=}
+%evalmacro INPUT INPUT
+
+#now edit the html blocks...
+%call mediawiki_edits
+
+#now reset original mediawiki translation defs:
+%include mediawiki.defs
+
+#now finish the transform:
+ECHO_TXT = $INPUT
+%evalmacro * ECHO_TXT ECHO_TXT
+echo	/$TOPIC_INFILE:basename

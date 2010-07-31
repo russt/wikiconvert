@@ -1,0 +1,6 @@
+TESTNAME is wikiconvert00001
+GENERATING INTERMEDIATE FORM:
+echo -> ../bld/cgtstroot/wif/QuickHelp.txt
+GENERATING NEW ORIGINAL FROM INTERMEDIATE FORM:
+echo -> ../bld/cgtstroot/vq_redux/QuickHelp.txt
+diff -wbc ORIGINAL CONVERTED

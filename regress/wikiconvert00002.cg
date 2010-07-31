@@ -1,0 +1,9 @@
+TOPIC_ORIGINAL = ./$TESTNAME.txt
+%include wikiconvert00001.cg
+%echo
+
+#just cat the wif to see it it is what we expect:
+%echo =================
+%echo INTERMEDIATE FORM
+%echo =================
+%cat $WIKI_CONVERSION_TEMPLATES/$TOPIC_ORIGINAL:basename

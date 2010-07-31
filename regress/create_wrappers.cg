@@ -1,0 +1,52 @@
+#
+# Copyright (C) 2010 Russ Tremain.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0 or later.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Artistic License 2.0 for more details.
+#
+# You should have received a copy of the Artistic License the file
+# LICENSE.  If not, see:
+#     <http://www.perlfoundation.org/artistic_license_2_0>
+#
+
+#generate the test ksh wrappers
+#Usage:  cado -cgroot . create_wrappers.cg
+#        do not pass -u unless you want to re-write the wrapper(s).
+
+%ifndef CG_ROOT  CG_ROOT=bld
+
+{
+KSH_WRAPPER := << EOF
+#!/bin/sh
+#{=TEST_PREFIX=}000{=TNUM=} - comment
+
+TESTNAME={=TEST_PREFIX=}000{=TNUM=}
+echo TESTNAME is $TESTNAME
+. ./regress_defs.ksh
+
+cado -u -cgroot $REGRESS_CG_ROOT -DTESTNAME=$TESTNAME $TESTNAME.cg
+EOF
+}
+
+{
+emit_wrapper := << EOF
+    #%echo Emitting wrapper $TNUM
+    %evalmacro ECHO_TXT KSH_WRAPPER
+    echo	/${TEST_PREFIX}000${TNUM}.ksh
+EOF
+}
+
+TEST_PREFIX = wikiconvert
+#this is the number of tests:
+TNUM = 04
+%call emit_wrapper
+###  just emit one test:
+%exit
+
+TNUM = $TNUM:incr
+%while $TNUM:decr:assign %call emit_wrapper

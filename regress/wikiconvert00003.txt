@@ -1,0 +1,104 @@
+<code>
+how are <nowiki>{{{literals}}}</nowiki> treated inside code blocks
+
+how about links:  http://foo
+
+how about topics?  [[SomeTopic]]
+</code>
+=Headline level 1=
+very important stuff
+==Headline level 2==
+important stuff
+===Headline level 3===
+Noticeable stuff
+
+''rules for headlines:  delimiters must appear at '''^''' and '''$''' of line''
+
+[http://wwwapps.ups.com/WebTracking/processInputRequest?sort_by=status&tracknums_displayed=1&TypeOfInquiryNumber=T&loc=en_US&InquiryNumber1=1ZA2F8570200108385&track.x=0&track.y=0 ups:1ZA2F8570200108385]<br>
+ups: fedx:<br>
+what about literals in urls?<br>
+http://foohttp://blah<br>
+http://foo http:/blah<br>
+http:\\foo<br>
+rsync://foo<br>
+https://foo
+
+0http://foo<br>
+gee://foo<br>
+HTTP://foo
+
+ftp://blah
+
+<nowiki>http://www.yahoo.com</nowiki><br>
+<nowiki>  http://www.yahoo.com  </nowiki>  (with spaces)
+
+[http://www.fedex.com/Tracking?tracknumbers=__ThisTopic__ fedx:__ThisTopic__]
+
+0fedx:<nowiki>ThisTopic</nowiki>
+
+xx:[[SomeTopic]]
+
+<nowiki> 0fedx:</nowiki>[[ThisTopic]]
+
+what is camel case?
+
+ATopic<br>
+[[SomeTopic]]<br>
+SomeTOPIC<br>
+[[SomeTOPIc]]<br>
+[[SomeTOpic]]<br>
+Some0Topic<br>
+Some_Topic<br>
+Some-Topic<br>
+Some.Topic<br>
+[[ThisIsANewTopic]]<br>
+0[[SomeTopicTopicTTopic]]9
+
+http://ice.prc.sun.com/JSPWiki/Wiki.jsp?page=IdiomWorldServer#section-IdiomWorldServer-ToolsToCheckTheDuplicateKeyInThePropertyFile
+
+http://ice.prc.sun.com/JSPWiki/attach/IdiomWorldServer/PreCheck.jar<br>
+ 
+ preformated
+ text
+ 
+list items<br>
+* xx
+* yy
+
+
+http://grinder.sfbay/whiteboard/jsp/Wiki?InstallGraphviz
+
+[[AnotherTable]]
+
+[[OpenEsbAnnouncementDraft]]<br>
+[[EsbManagementSchedule]]
+
+{| border="1"
+|-
+|0,0||0,1
+|-
+|1,0||1,1
+|}
+
+title<br>
+{| border="1"
+|-
+|0,0||0,1
+|-
+|1,0||1,1
+|}
+title<br>
+{| border="1"
+|-
+|0,0||0,1
+|-
+|1,0||1,1
+|}
+
+
+
+http://www.airdesks.com/images/LARGETRAY.jpg
+----
+http://www.airdesks.com/images/BOOKHOLDERjpg.jpg
+----
+http://www.airdesks.com/images/S2small.jpg

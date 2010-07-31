@@ -1,0 +1,96 @@
+{{{
+how are __{{{literals}}}__ treated inside code blocks
+
+how about links:  http://foo
+
+how about topics?  SomeTopic
+}}}
+!!!Headline level 1!!!
+very important stuff
+!!Headline level 2!!
+important stuff
+!Headline level 3!
+Noticeable stuff
+
+''rules for headlines:  delimiters must appear at '''^''' and '''$''' of line''
+
+[<html>]<A HREF="http://wwwapps.ups.com/WebTracking/processInputRequest?sort_by=status&tracknums_displayed=1&TypeOfInquiryNumber=T&loc=en_US&InquiryNumber1=1ZA2F8570200108385&track.x=0&track.y=0">ups:1ZA2F8570200108385</A>[</html>]
+ups: fedx:
+what about literals in urls?
+http://foohttp://blah
+http://foo http:/blah
+http:\\foo
+rsync://foo
+https://foo
+
+0http://foo
+gee://foo
+HTTP://foo
+
+ftp://blah
+
+__http://www.yahoo.com__
+__  http://www.yahoo.com  __  (with spaces)
+
+[<html>]<A HREF="http://www.fedex.com/Tracking?tracknumbers=__ThisTopic__">fedx:__ThisTopic__</A>[</html>]
+
+0fedx:__ThisTopic__
+
+xx:SomeTopic
+
+__ 0fedx:__ThisTopic
+
+what is camel case?
+
+ATopic
+SomeTopic
+SomeTOPIC
+SomeTOPIc
+SomeTOpic
+Some0Topic
+Some_Topic
+Some-Topic
+Some.Topic
+ThisIsANewTopic
+0SomeTopicTopicTTopic9
+
+http://ice.prc.sun.com/JSPWiki/Wiki.jsp?page=IdiomWorldServer#section-IdiomWorldServer-ToolsToCheckTheDuplicateKeyInThePropertyFile
+
+http://ice.prc.sun.com/JSPWiki/attach/IdiomWorldServer/PreCheck.jar
+@@@@
+preformated
+text
+
+list items
+	* xx
+	* yy
+@@
+http://grinder.sfbay/whiteboard/jsp/Wiki?InstallGraphviz
+
+AnotherTable
+
+OpenEsbAnnouncementDraft
+EsbManagementSchedule
+
+####
+0,0##0,1##
+1,0##1,1##
+####
+
+title
+####
+0,0##0,1##
+1,0##1,1##
+####
+title
+####
+0,0##0,1##
+1,0##1,1##
+####
+@@
+
+http://www.airdesks.com/images/LARGETRAY.jpg
+----
+http://www.airdesks.com/images/BOOKHOLDERjpg.jpg
+----
+http://www.airdesks.com/images/S2small.jpg

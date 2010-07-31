@@ -1,0 +1,39 @@
+Text Emphasis
+To make text...	use...
+Italic	''Italic''
+Bold	'''Bold'''
+Bold Italic	'''''Bold Italic'''''
+Code	{{{Code}}}
+Underline	===Underline===
+Center	::Center::
+Superscript	Super^^script^^
+Subscript	Sub~~script~~
+Stricken	--Stricken--
+Headlines
+Very important	!!!Headline level 1!!!
+Important	!!Headline level 2!!
+Noticeable	!Headline level 3!
+Structured
+Bulleted List: 3 spaces followed by a * 
+Numbered List: 3 spaces followed by a #
+Line Break in List: @@ generates a line break
+Horizontal Rules: ----
+Links or references
+Camel-cased word	ThisIsANewTopic
+Word surrounded by two brackets	[[Topic]]
+Word surrounded by back-ticks	`Topic`
+Tables
+####
+0,0##0,1##
+1,0##1,1##
+####
+Preformatted text
+Some text
+@@@@
+Preformatted text
+
+Back to normal text
+Plain HTML
+Surround code as follows: [<html>] <!--some html--> [</html>]
+Java source code
+Surround code as follows: Surround code as follows: [<java>] mycode(); [</java>]

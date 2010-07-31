@@ -1,0 +1,105 @@
+#
+# Copyright (C) 2010 Russ Tremain.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0 or later.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Artistic License 2.0 for more details.
+#
+# You should have received a copy of the Artistic License the file
+# LICENSE.  If not, see:
+#     <http://www.perlfoundation.org/artistic_license_2_0>
+#
+
+#
+#mediawiki.defs - translate vqwiki syntax to mediawiki.
+#
+
+tab = $tab:clr:tab
+nl = $nl:clr:newline
+sp = $sp:clr:space
+
+#special mediawiki tokens (for transforming intermediate form):
+#example:  [http://www.cnn.com/ CNN]
+MW_EXTERNAL_LQ = [
+MW_EXTERNAL_RQ = ]
+
+VQ_TOPIC_S_LQ = [[
+VQ_TOPIC_S_RQ = ]]
+VQ_TOPIC_LQ = $VQ_TOPIC_S_LQ
+VQ_TOPIC_RQ = $VQ_TOPIC_S_RQ
+VQ_TOPIC_G_LQ = $VQ_TOPIC_S_LQ
+VQ_TOPIC_G_RQ = $VQ_TOPIC_S_RQ
+
+VQ_ITALIC_LQ = ''
+VQ_ITALIC_RQ = ''
+VQ_BOLD_LQ = '''
+VQ_BOLD_RQ = '''
+VQ_BOLD_ITALIC_LQ = '''''
+VQ_BOLD_ITALIC_RQ = '''''
+VQ_LITERAL_LQ = <nowiki>
+VQ_LITERAL_RQ = </nowiki>
+
+#LISTS:
+VQ_LIST_ITEM =
+VQ_LIST_INDENT = *
+VQ_NUM_LIST_ITEM =
+VQ_NUM_LIST_INDENT = #
+VQ_LIST_END = ${nl}
+
+VQ_UNDERLINE_LQ = <u>
+VQ_UNDERLINE_RQ = </u>
+VQ_STRICKEN_LQ = <s>
+VQ_STRICKEN_RQ = </s>
+
+VQ_CODE_LQ = <code>
+VQ_CODE_RQ = </code>
+
+VQ_DIVIDER = ----
+
+VQ_HEADLINE_BIG_LQ = =
+VQ_HEADLINE_BIG_RQ = =
+VQ_HEADLINE_MEDIUM_LQ = ==
+VQ_HEADLINE_MEDIUM_RQ = ==
+VQ_HEADLINE_SMALL_LQ = ===
+VQ_HEADLINE_SMALL_RQ = ===
+
+VQ_CENTER_LQ = <center>
+VQ_CENTER_RQ = </center>
+VQ_SUBSCRIPT_LQ = <sub>
+VQ_SUBSCRIPT_RQ = </sub>
+VQ_SUPERSCRIPT_LQ = <sup>
+VQ_SUPERSCRIPT_RQ = </sup>
+
+#preformated text just has a single space at the beginning of each line we want preformatted.
+VQ_PREFORMATTED_LQ = $sp
+#BUG: if newline, template is expanded and extra newline is added.  #if empty,
+#then marco is invisible.  therefore set to a space char, and delete later if necessary.
+#VQ_PREFORMATTED_RQ = $nl
+VQ_PREFORMATTED_RQ = $sp
+VQ_PREFORMATTED_ITEM = $sp
+
+#so far I think you don't need these tags for mediaWiki:
+VQ_HTML_LQ = <pre>
+VQ_HTML_RQ = </pre>
+
+#I think the [<java>] tags are unique to vqwiki.
+VQ_JAVA_LQ = <pre>
+VQ_JAVA_RQ = </pre>
+
+VQ_LINK_LQ = 
+VQ_LINK_PROP_LQ = 
+VQ_LINK_PROP_RQ = 
+VQ_LINK_RQ = 
+
+VQ_TABLE_LQ = {| border="1"
+VQ_TABLE_RQ = |}
+VQ_COL_SEP = ||
+VQ_ROW_BEG = |-${nl}|
+VQ_ROW_END =
+
+#mediawiki requires explicit line-breaks:
+VQ_BR = <br>

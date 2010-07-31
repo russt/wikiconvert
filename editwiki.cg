@@ -1,0 +1,203 @@
+#
+# Copyright (C) 2010 Russ Tremain.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0 or later.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Artistic License 2.0 for more details.
+#
+# You should have received a copy of the Artistic License the file
+# LICENSE.  If not, see:
+#     <http://www.perlfoundation.org/artistic_license_2_0>
+#
+
+#
+# editwiki.cg - create/edit a single topic in the JAM wiki.
+#
+
+%ifndef CG_ROOT CG_ROOT = bld
+
+#note - curl will fail to write cookies if output dir isn't there:
+%mkdir -p $CG_ROOT
+
+COOKIE_FILE =   $CG_ROOT/cookies.txt
+%ifndef TOPIC_BASE_URL    TOPIC_BASE_URL = http://localhost:4407/jamwiki/en
+
+#this is to escape $ in substitution expressions:
+DS := $
+
+get_topic := << //
+{
+    cmdvar = curlcmd$cnum:incr:a
+    $cmdvar = << EOF
+#verbose
+#accept all certificates:
+insecure
+#follow redirects:
+location
+url =   $EDIT_GET_URL
+#write the cookies:
+cookie-jar = $COOKIE_FILE
+#show HTTP headers:
+include
+EOF
+
+%eecho cmdvar='$cmdvar' value of cmdvar='$cmdvar:valueof'
+%eecho
+
+    #run the curl command and save the output:
+    CG_SHELL_COMMAND_ARGS = --config -
+    ECHO_TXT = $cmdvar:valueof:curl:tounix
+    #save the output (note - curl --include does not display cookies, but I see them in burp):
+    echo    /$cmdvar.html
+
+    #this is used by set_lastTopicVersionId
+    GET_RESPONSE = $ECHO_TXT
+}
+//
+
+set_lastTopicVersionId := << //
+{
+    #this is a result parameter:
+    lastTopicVersionId =
+
+    #if it is not a new topic, then we should find name="lastTopicVersionId" in the response:
+    CG_MATCH_SPEC = /<input type="hidden" name="lastTopicVersionId" (value="\d+")/
+%eecho
+%eecho MATCH=$GET_RESPONSE:match
+    %ifnot $GET_RESPONSE:match %return -e DID NOT FIND lastTopicVersionId - new topic?
+
+    #now we need to pull out lastTopicVersionId in order to formulate the post:
+    #example:  <input type="hidden" name="lastTopicVersionId" value="14" />
+    CG_SUBSTITUTE_SPEC = s/^.*<input type="hidden" name="lastTopicVersionId" (value="\d+").*$/${DS}1/s
+#%eecho CG_SUBSTITUTE_SPEC='$CG_SUBSTITUTE_SPEC'
+    tmp = $GET_RESPONSE:substitute
+
+    CG_SUBSTITUTE_SPEC = s/"//g
+    %void $tmp:s:a
+    #this will interpret 'values=...' to a local variable named $value:
+
+%eecho
+%eecho INTERPRETING tmp='$tmp'
+
+    %interpret tmp
+
+%eecho
+%eecho value='$value'
+
+    %ifdef value        lastTopicVersionId = $value
+}
+//
+
+post_topic := << //
+{
+    cmdvar = curlcmd$cnum:incr:a
+
+%eecho POST cmdvar='$cmdvar'
+%eecho
+
+    $cmdvar = << EOF
+####
+#verbose
+#accept all certificates:
+insecure
+#show HTTP headers:
+include
+#follow redirect?
+location
+#read previous cookie:
+cookie =        $COOKIE_FILE
+####
+url =   $EDIT_GET_URL
+header =        "Referer: $product_url"
+data =  $DATA
+EOF
+
+#%echo cmdvar=$cmdvar:valueof
+    #run the curl command and save the output:
+    CG_SHELL_COMMAND_ARGS = --config -
+    ECHO_TXT = $cmdvar:valueof:curl:tounix
+    echo        /$cmdvar.html
+
+    POST_RESPONSE = $ECHO_TXT
+}
+//
+
+error_check := << //
+#check for posting errors.
+#basically, we are looking for an error message in the server response to the post.
+#if we find an error message, then we print it and set the exit status.
+{
+    #check arg:
+    ERROR_CHECK_FAILED = 1
+    ERROR_CHECK_MSG = you must define ERROR_CHECK_STR
+    %ifndef ERROR_CHECK_STR    %return
+
+#cado[substitute]: ERROR: line 15: evaluation of CG_SUBSTITUTE_SPEC (s/^.*/<div class="message red">/([^<]+).*$/$1/s) failed: Unterminated <> operator at (eval 16) line 1, <TEMPLATE02> line 15.
+
+    #example:  <div class="message red">You must login with administrative privileges to edit LeftMenu.</div>
+    pattern := <div class="message red">
+    CG_MATCH_SPEC = /$pattern/
+    CG_SUBSTITUTE_SPEC = s/^.*${pattern}([^<]+).*$/${DS}1/s
+    ERROR_CHECK_FAILED = 0
+    %if $ERROR_CHECK_STR:match    ERROR_CHECK_FAILED = 1
+    %if $ERROR_CHECK_FAILED       ERROR_CHECK_MSG = RESPONSE ERROR:  $ERROR_CHECK_STR:substitute
+    %if $ERROR_CHECK_FAILED       %return
+
+    #no errors:
+    ERROR_CHECK_FAILED = 0
+    ERROR_CHECK_MSG =
+}
+//
+
+##################################### MAIN #####################################
+cnum = 00
+
+#http://localhost:4407/jamwiki/en/Special:Edit?topic=RussTopics
+
+%ifndef TOPIC_INFILE  TOPIC_INFILE = bld/mediawiki/LeftMenu.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = bld/mediawiki/RussScratchPage.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = bld/mediawiki/NewTopic.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = bld/mediawiki/NewTopicTwo.txt
+
+#convert TOPIC to standard form, as it is written out by vq2toc:
+CG_SUBSTITUTE_SPEC = s/\+/ /g
+TOPIC_IN = $TOPIC_INFILE:basename:root:substitute:urldecode:urlencode
+TOPIC_INFILE = ${TOPIC_INFILE:dirname}/${TOPIC_IN}.txt
+
+TOPIC = $TOPIC_IN:urldecode
+
+###### exit if file not found:
+%ifnot $TOPIC_INFILE:r %return -e -s 1 ${CG_INFILE}:  cannot open '$TOPIC_INFILE' - abort.
+
+#read in the file:
+%readtemplate INPUT $TOPIC_INFILE
+INPUT = $INPUT:urlencode
+
+EDIT_GET_URL = $TOPIC_BASE_URL/Special:Edit?topic=$TOPIC_IN
+EDIT_POST_URL = $EDIT_GET_URL
+
+%eecho EDIT_GET_URL='$EDIT_GET_URL'
+%eecho
+
+%call get_topic
+ERROR_CHECK_STR = $GET_RESPONSE
+%call error_check
+%if $ERROR_CHECK_FAILED   %return -e -s 2 EDIT of topic '$TOPIC': $ERROR_CHECK_MSG
+
+#note - on topic creation, lastTopicVersionId is empty
+lastTopicVersionId=
+%call set_lastTopicVersionId
+
+#User:admin
+DATA = topic=${TOPIC_IN}&lastTopicVersionId=${lastTopicVersionId}&section=&topicVersionId=&contents=${INPUT}&editComment=&save=Save
+%eecho DATA='$DATA'
+%eecho
+
+%call post_topic
+ERROR_CHECK_STR = $POST_RESPONSE
+%call error_check
+%if $ERROR_CHECK_FAILED   %return -e -s 3 POST of topic '$TOPIC': $ERROR_CHECK_MSG

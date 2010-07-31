@@ -1,0 +1,54 @@
+#
+# Copyright (C) 2010 Russ Tremain.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0 or later.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Artistic License 2.0 for more details.
+#
+# You should have received a copy of the Artistic License the file
+# LICENSE.  If not, see:
+#     <http://www.perlfoundation.org/artistic_license_2_0>
+#
+
+#convert the selected topic to wiki intermediate form (wif).
+
+%pragma filegen_notices_to_stdout 1
+
+CG_ROOT_BASE = $CG_ROOT
+CG_TEMPLATE_PATH_BASE = $CG_TEMPLATE_PATH
+
+WIKI_CONVERSION_TEMPLATES = $WIKI_CONVERSION_TEMPLATES:nameof:env
+CG_ROOT = $WIKI_CONVERSION_TEMPLATES
+
+%ifndef LINKING_PROPS_FN LINKING_PROPS_FN = ../linking.properties
+
+%ifndef TOPIC_ORIGINAL  TOPIC_ORIGINAL = ../vqwiki_pages/QuickHelp.txt
+
+TOPIC_INFILE = $TOPIC_ORIGINAL
+
+%echo GENERATING INTERMEDIATE FORM:
+%include ../vq2tok.cg
+
+########
+#convert the converstion template back to original vqwiki syntax.
+########
+
+%pragma filegen_notices_to_stdout 1
+
+CG_ROOT = $CG_ROOT_BASE/vq_redux
+CG_TEMPLATE_PATH = $WIKI_CONVERSION_TEMPLATES;$CG_TEMPLATE_PATH_BASE
+
+TOPIC_INFILE = $WIKI_CONVERSION_TEMPLATES/$TOPIC_ORIGINAL:basename
+TOPIC_CONVERTED = $CG_ROOT/$TOPIC_ORIGINAL:basename
+
+#wif <=> wiki intermediate form
+%echo GENERATING NEW ORIGINAL FROM INTERMEDIATE FORM:
+%include ../wif2vq.cg
+
+#diff the input with the output:
+%echo diff -wbc ORIGINAL CONVERTED
+%diff -wbc $TOPIC_ORIGINAL $TOPIC_CONVERTED

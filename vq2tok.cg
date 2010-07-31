@@ -1,0 +1,740 @@
+#
+# Copyright (C) 2010 Russ Tremain.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0 or later.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Artistic License 2.0 for more details.
+#
+# You should have received a copy of the Artistic License the file
+# LICENSE.  If not, see:
+#     <http://www.perlfoundation.org/artistic_license_2_0>
+#
+
+#
+#vq2tok.cg - convert vqwiki source syntax to a tokenized version.
+#
+
+%ifndef CG_ROOT CG_ROOT = bld
+
+init_globals := << //
+{
+    #universal token to temporarily delimit our parsable items.
+    #set to ascii formfeed (^L).
+    UNIVTOK = $HEX_0C:nameof:hexdecode
+    #set to ascii BELL (^G):
+    UNIVTOK2 = $HEX_07:nameof:hexdecode
+
+    #other possibilities:  \x1b esc, \x7f del
+
+    DS := $
+#%eecho DS='$DS' UNIVTOK='$UNIVTOK'
+
+    tab = $tab:clr:tab
+    nl = $nl:clr:newline
+
+    #initialize url prefixes:
+    %undef URL_PREFIX_STK
+    %push URL_PREFIX_STK http
+    %push URL_PREFIX_STK https
+    %push URL_PREFIX_STK ftp
+
+    CG_SUBSTITUTE_SPEC = s/\s+/|/g
+    URL_PREFIX_EXPR = $URL_PREFIX_STK:showstack:substitute
+#%eecho URL_PREFIX_EXPR=$URL_PREFIX_EXPR
+}
+//
+
+show_vq_defs := << //
+{
+    #output all VQ_ prefixed variables with their values:
+    %undef vqstack
+    %pushv vqstack /VQ_.*/
+
+    #%echo VQ_ var list:  '$vqstack:showstack'
+
+    EQ := =
+    EQ = $EQ:lspace:rspace
+
+    arange = 01..$vqstack:stacksize
+    %foreach ii arange %void $vqstack:car:echo $EQ:echo $vqstack:car:valueof:newline:echo $vqstack:cdr:a
+}
+//
+
+read_linking_properties := << //
+#read in the linking properties file, and save output in LINKPROPS_STK stack.
+{
+    %undef LINKPROPS_STK
+
+    %readtemplate LINKPROPS $LINKING_PROPS_FN
+
+    #delete comment lines:
+    CG_SUBSTITUTE_SPEC = s/^\s*#.*$//gm
+    %void $LINKPROPS:substitute:assign
+#%eecho no comments LINKPROPS='$LINKPROPS'
+
+    #trim BOL/EOL white-space:
+    CG_SUBSTITUTE_SPEC = s/^\s*//gm
+    %void $LINKPROPS:substitute:assign
+    CG_SUBSTITUTE_SPEC = s/\s*$//gm
+    %void $LINKPROPS:substitute:assign
+
+    #trim white-space before/after '=' operator:
+    CG_SUBSTITUTE_SPEC = s/\s*=\s*/=/gm
+    %void $LINKPROPS:substitute:assign
+
+    #now the only spaces are newlines.  squeeze:
+    CG_SUBSTITUTE_SPEC = s/\s+/\n/gs
+    %void $LINKPROPS:trim:substitute:assign
+#%eecho squeeze white-space LINKPROPS='$LINKPROPS'
+
+    {
+    #make a copy and pull out the list of linking props, so we can create
+    #a RE to recognize them in the input:
+    LINKPROPS2 = $LINKPROPS
+    CG_SUBSTITUTE_SPEC = s/=.*//gm
+    %void $LINKPROPS2:substitute:assign
+
+    #now we can create the stack var:
+    CG_SPLIT_PATTERN = [\s+]
+    LINKPROPS_STK = $LINKPROPS2:split
+
+    #now create an RE alternation expression to match any prefix:
+    LINKPROPS_EXPR = $LINKPROPS_STK:showstack
+    CG_SUBSTITUTE_SPEC = s/\t/|/g
+    %void $LINKPROPS_EXPR:substitute:assign
+    }
+
+    #from the original file, create link-prop variables of the form:
+    #LINKPROP_<propname> = value
+    #the inner-substitute is to map link-prop variables to legal cado variable identifiers:
+    CG_SUBSTITUTE_SPEC2 := s/[^A-Za-z0-9_]/_x_/g
+    CG_SUBSTITUTE_SPEC := s/^([^=]*)=(.*)$/sprintf("LINKPROP_%s := %s", &s2_op($1), "$2")/emg
+    %void $LINKPROPS:substitute:assign
+
+    #now interpret the ouptut, and create the LINKPROP_* variables:
+    %interpret LINKPROPS
+#%call dump_linkprops
+}
+//
+
+dump_linkprops := << //
+#debug:  dump the linkprop variables:
+{
+    %eecho LINKPROPS_EXPR='$LINKPROPS_EXPR:showstack'
+
+    %undef lkpropstk
+    %pushv lkpropstk /LINKPROP_.*/
+    EQ := =
+    arange = 01..$lkpropstk:stacksize
+    %foreach ii arange %void $lkpropstk:car:eecho $EQ:eecho $lkpropstk:car:valueof:newline:eecho $lkpropstk:cdr:a
+}
+//
+
+tokenize_literals := << //
+#macro to tokenize literal strings.
+#this time we hex-encode contents of literals and create a macro to reference them.
+{
+    qtokroot = VQ_LITERAL
+    qtokvalue = __
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtokvalue
+    ${qtokroot}_RQ = $qtokvalue
+
+    #set up for substitute:
+    CG_SUBSTITUTE_SPEC = s/$qtokvalue/$UNIVTOK/g
+    %void $INPUT:substitute:assign
+
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK([^$UNIVTOK]*)$UNIVTOK/sprintf('{=${qtokroot}_LQ=}{=${DS}%s:nameof:hexdecode=}{=${qtokroot}_RQ=}', &hexencode_op("${DS}1"))/egs
+#%eecho CG_SUBSTITUTE_SPEC=$CG_SUBSTITUTE_SPEC
+    %void $INPUT:substitute:assign
+
+    #put back any UNIVTOK that do not match:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/$qtokvalue/g
+    %void $INPUT:substitute:assign
+}
+//
+
+tokenize_linkprops := << //
+#expand any vqwiki prefixe macros.
+{
+    qtokroot = VQ_LINK_PROP
+    #no visible value in output for vqwiki:
+    qtokvalue =
+
+    #convert the link macro to a html href.
+    #For example, LINK_PROP_isnoop is http://boxoh.com/?t=${url}
+    #input:  isnoop:1Z787Y564403397283, LINK_PROP_isnoop := http://boxoh.com/?t=${url}
+    #output: [<html>]<A HREF="http://boxoh.com/?t=1Z787Y564403397283">isnoop:1Z787Y564403397283</A>[</html>]
+
+    #arg example for s2_op: a1=http://www.fedex.com/Tracking?tracknumbers=${url} a2=fedx a3=440343064566
+    CG_SUBSTITUTE_SPEC2 := s/^([^#]*)#([^#]*)#([^#]*)$/sprintf("[<html>]<A HREF=\"%s\">%s:%s<\/A>[<\/html>]", &{sub{my($a,$b,$c)=(@_); $a =~ s|\$\{url\}|$c|g; $a}}("$1","$2","$3"), "$2", "$3")/e
+
+    CG_SUBSTITUTE_SPEC = s/(^|\s+)($LINKPROPS_EXPR):([^\s]+)/sprintf("%s%s", ${DS}1, &s2_op(&lookup_def("LINKPROP_${DS}2") . "#${DS}2#${DS}3"))/egs
+    %void $INPUT:substitute:assign
+
+#%eecho CG_SUBSTITUTE_SPEC=$CG_SUBSTITUTE_SPEC
+#%eecho CG_SUBSTITUTE_SPEC2=$CG_SUBSTITUTE_SPEC2
+#ECHO_TXT=$INPUT
+#echo	/tokenize_linkprops01.txt
+
+    #hex encode link content to avoid expansion as a topic:
+    CG_SUBSTITUTE_SPEC = s/(^|\s+)(($LINKPROPS_EXPR):[^\s]+)/sprintf('%s{=${qtokroot}_LQ=}{=${DS}%s:nameof:hexdecode=}{=${qtokroot}_RQ=}', "${DS}1", &hexencode_op("${DS}2"))/egs
+#%eecho CG_SUBSTITUTE_SPEC=$CG_SUBSTITUTE_SPEC
+#    %void $INPUT:substitute:assign
+    
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtokvalue
+    ${qtokroot}_RQ = $qtokvalue
+}
+//
+
+tokenize_links := << //
+#macro to tokenize html & other url-type links.
+#rule: links can be literals, but no literals (or topics) within links.
+{
+    #first handle html blocks:
+    qtokroot = VQ_HTML
+    qtoklvalue = \[\<html\>\]
+    qtokrvalue = \[\<\/html\>\]
+    %call tokenize_hex_encode
+
+    #next handle java blocks:
+    qtokroot = VQ_JAVA
+    qtoklvalue = \[\<java\>\]
+    qtokrvalue = \[\<\/java\>\]
+    %call tokenize_hex_encode
+
+#ECHO_TXT=$INPUT
+#echo	/tokenize_java01.txt
+
+    #Now handle any simple links left over:
+    qtokroot = VQ_LINK
+    #no visible value in output for vqwiki:
+    qtokvalue =
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtokvalue
+    ${qtokroot}_RQ = $qtokvalue
+
+    CG_SUBSTITUTE_SPEC = s/(^|\s+)(($URL_PREFIX_EXPR):[^\s]+)/sprintf('%s{=${qtokroot}_LQ=}{=${DS}%s:nameof:hexdecode=}{=${qtokroot}_RQ=}', "${DS}1", &hexencode_op("${DS}2"))/egs
+#%eecho CG_SUBSTITUTE_SPEC=$CG_SUBSTITUTE_SPEC
+    %void $INPUT:substitute:assign
+}
+//
+
+tokenize_codeblocks := << //
+#since {} are used in already embedded cg vars, we have to be a bit careful here.
+{
+    qtokroot = VQ_CODE
+    qtoklvalue = {{{
+    qtokrvalue = }}}
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtoklvalue
+    ${qtokroot}_RQ = $qtokrvalue
+
+    CG_SUBSTITUTE_SPEC = s/({*)$qtoklvalue/$UNIVTOK${DS}1/g
+    %void $INPUT:substitute:assign
+
+    CG_SUBSTITUTE_SPEC = s/(}*)$qtokrvalue/${DS}1$UNIVTOK2/g
+    %void $INPUT:substitute:assign
+
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK([^$UNIVTOK2]*)$UNIVTOK2/\{=${qtokroot}_LQ=\}${DS}1\{=${qtokroot}_RQ=\}/g
+    %void $INPUT:substitute:assign
+
+    #put back quotes that do not match:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/$qtoklvalue/g
+    %void $INPUT:substitute:assign
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK2/$qtokrvalue/g
+    %void $INPUT:substitute:assign
+}
+//
+
+tokenize_topics := << //
+#macro to tokenize camel-case & other topic strings.
+{
+    #G for grave accent:
+    qtokroot = VQ_TOPIC_G
+    qtokvalue = `
+    %call tokenize_quotes
+
+    #S for squarebrackets
+    qtokroot = VQ_TOPIC_S
+    qtoklvalue = \[\[
+    qtokrvalue = \]\]
+
+    %call tokenize_quotes2
+
+    #now seek out all CamelCase identifiers:
+    # ok: SomeTopic
+    # ok: SomeTOPIc
+    # ok: SomeTOpic
+    # ok: ThisIsANewTopic
+    # no: ATopic
+    # no: SomeTOPIC
+    # no: Some0Topic
+    # no: Some_Topic
+    # no: Some-Topic
+    # no: Some.Topic
+    # yes: 0SomeTopic9 (0 & 9 are excluded from topic string)
+
+    CG_SUBSTITUTE_SPEC = s/(^|[^A-Za-z])([A-Z][a-z]+([A-Z]+[a-z]+)+)/${DS}1\{=VQ_TOPIC_LQ=\}${DS}2\{=VQ_TOPIC_RQ=\}/gs
+#%eecho tokenize_topics: CG_SUBSTITUTE_SPEC=$CG_SUBSTITUTE_SPEC
+    %void $INPUT:substitute:assign
+}
+//
+
+tokenize_hex_encode := << //
+#  INPUT - the input string (file we are working on)
+#  qtokroot - the root name of the delimited quote
+#  qtoklvalue - the left quote value (e.g., {{{ for start block)
+#  qtokrvalue - the right quote value (e.g., }}} for end block)
+{
+    #note - we need to use different universal markers so we can restore
+    #input correctly for non-matching pairs.
+
+    CG_SUBSTITUTE_SPEC = s/$qtoklvalue/$UNIVTOK/g
+    %void $INPUT:substitute:assign
+    CG_SUBSTITUTE_SPEC = s/$qtokrvalue/$UNIVTOK2/g
+    %void $INPUT:substitute:assign
+
+    CG_SUBSTITUTE_SPEC2 := s/^(.*)$/sprintf('{=$%s:nameof:hexdecode=}', &hexencode_op("$1"))/egs
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK([^$UNIVTOK2]*)$UNIVTOK2/sprintf("{=${qtokroot}_LQ=}%s{=${qtokroot}_RQ=}", &s2_op("${DS}1"))/egs
+    %void $INPUT:substitute:assign
+
+#%eecho CG_SUBSTITUTE_SPEC=$CG_SUBSTITUTE_SPEC
+#%eecho CG_SUBSTITUTE_SPEC2=$CG_SUBSTITUTE_SPEC2
+
+    #put back quotes that do not match:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/$qtoklvalue/g
+    %void $INPUT:substitute:assign
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK2/$qtokrvalue/g
+    %void $INPUT:substitute:assign
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtoklvalue
+    ${qtokroot}_RQ = $qtokrvalue
+
+    #defensive:
+    %undef qtokroot
+    %undef qtoklvalue
+    %undef qtokrvalue
+}
+//
+
+tokenize_quotes := << //
+#this macro tokenizes the named quoted values
+#INPUTS parameters:
+#  INPUT - the input string (file we are working on)
+#  qtokroot - the root name of the delimited quote
+#  qtokvalue - the quote value (e.g., ''' for bold, '' for italic, etc)
+#
+{
+    CG_SUBSTITUTE_SPEC = s/$qtokvalue/$UNIVTOK/gm
+    %void $INPUT:substitute:assign
+
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK([^$UNIVTOK]*)$UNIVTOK/\{=${qtokroot}_LQ=\}${DS}1\{=${qtokroot}_RQ=\}/g
+    %void $INPUT:substitute:assign
+
+    #replace any UNIVTOK that do not match (for example, a ! at the end of a line):
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/$qtokvalue/g
+    %void $INPUT:substitute:assign
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtokvalue
+    ${qtokroot}_RQ = $qtokvalue
+}
+//
+
+tokenize_quotes2 := << //
+#this macro tokenizes the named quoted values
+#INPUTS parameters:
+#  INPUT - the input string (file we are working on)
+#  qtokroot - the root name of the delimited quote
+#  qtoklvalue - the left quote value (e.g., {{{ for start block)
+#  qtokrvalue - the right quote value (e.g., }}} for end block)
+#
+{
+    #note - we need to use different universal markers so we can restore
+    #input correctly for non-matching pairs.
+
+    CG_SUBSTITUTE_SPEC = s/$qtoklvalue/$UNIVTOK/gs
+    %void $INPUT:substitute:assign
+    CG_SUBSTITUTE_SPEC = s/$qtokrvalue/$UNIVTOK2/gs
+    %void $INPUT:substitute:assign
+
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK([^$UNIVTOK2]*)$UNIVTOK2/\{=${qtokroot}_LQ=\}${DS}1\{=${qtokroot}_RQ=\}/g
+    %void $INPUT:substitute:assign
+
+    #put back quotes that do not match:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/$qtoklvalue/g
+    %void $INPUT:substitute:assign
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK2/$qtokrvalue/g
+    %void $INPUT:substitute:assign
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtoklvalue
+    ${qtokroot}_RQ = $qtokrvalue
+
+    #defensive:
+    %undef qtokroot
+    %undef qtoklvalue
+    %undef qtokrvalue
+}
+//
+
+tokenize_marker := << //
+#this macro tokenizes a single feature, like a divider line
+#INPUTS parameters:
+#  INPUT - the input string (file we are working on)
+#  qtokroot - the root name of the delimited quote
+#  qtokvalue - the single feature to substitute
+#
+{
+    #note - gm does a global multiline match, allowing ^$ to match individual lines.
+    CG_SUBSTITUTE_SPEC = s/$qtokvalue/$UNIVTOK/gm
+#%eecho CG_SUBSTITUTE_SPEC = s/$qtokvalue/$UNIVTOK/gm
+    %void $INPUT:substitute:assign
+
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/\{=${qtokroot}=\}/gs
+    %void $INPUT:substitute:assign
+
+    #create variables defs for generated refs:
+    ${qtokroot} = $qtokvalue
+}
+//
+
+tokenize_tables := << //
+#macro to tokenize tables, taking care to only substitute row dividers within the limits
+#of the table.
+{
+    qtokroot = VQ_TABLE
+    qtokvalue = ####
+    
+    CG_SUBSTITUTE_SPEC = s/$qtokvalue/$UNIVTOK/gm
+    %void $INPUT:substitute:assign
+
+    #now convert the row delimiters:
+    CG_SUBSTITUTE_SPEC2 = s/##/{=VQ_COL_SEP=}/gs
+    CG_SUBSTITUTE_SPEC  = s/($UNIVTOK\s*)([^$UNIVTOK]*)($UNIVTOK)/sprintf("%s%s%s", ${DS}1, &s2_op(${DS}2), ${DS}3)/egs
+    %void $INPUT:substitute:assign
+
+    #now insert a VQ_ROW_BEG at the beginning of each table line:
+    CG_SUBSTITUTE_SPEC2 = s/^/{=VQ_ROW_BEG=}/gm
+    CG_SUBSTITUTE_SPEC  = s/($UNIVTOK\s*)([^$UNIVTOK]*)($UNIVTOK)/sprintf("%s%s%s", ${DS}1, &s2_op(${DS}2), ${DS}3)/egs
+    %void $INPUT:substitute:assign
+
+    #finally, convert the final VQ_COL_SEP to mark the end of the row:
+    CG_SUBSTITUTE_SPEC2 = s/{=VQ_COL_SEP=}(\s*)${DS}/{=VQ_ROW_END=}${DS}1/gm
+    CG_SUBSTITUTE_SPEC  = s/($UNIVTOK\s*)([^$UNIVTOK]*)($UNIVTOK)/sprintf("%s%s%s", ${DS}1, &s2_op(${DS}2), ${DS}3)/egs
+    %void $INPUT:substitute:assign
+
+    #now convert UNIVTOK back to begin/end table marks:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK([^$UNIVTOK]*)$UNIVTOK/\{=${qtokroot}_LQ=\}${DS}1\{=${qtokroot}_RQ=\}/g
+    %void $INPUT:substitute:assign
+
+    #replace any UNIVTOK that do not match in pair:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/$qtokvalue/g
+    %void $INPUT:substitute:assign
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = $qtokvalue
+    ${qtokroot}_RQ = $qtokvalue
+    VQ_COL_SEP = ##
+    VQ_ROW_BEG =
+    VQ_ROW_END = ##
+}
+//
+
+tokenize_preformatted := << //
+{
+    qtokroot = VQ_PREFORMATTED
+    qtokvalue := ^\@\@\@\@$
+
+    #set left quote:
+    CG_SUBSTITUTE_SPEC = s/$qtokvalue/$UNIVTOK/gm
+    %void $INPUT:substitute:assign
+
+    #set right quote (note non-greedy match):
+    CG_SUBSTITUTE_SPEC  = s/(${UNIVTOK}.*?\n)(\n)/${DS}1${UNIVTOK}${DS}2/gs
+    %void $INPUT:substitute:assign
+
+    #insert row markers and encode each line:
+    CG_SUBSTITUTE_SPEC2 = s/^(.*)$/sprintf('{=${qtokroot}_ITEM=}{=${DS}%s:nameof:hexdecode=}', &hexencode_op("${DS}1"))/egm
+    CG_SUBSTITUTE_SPEC  = s/($UNIVTOK\s*)([^$UNIVTOK]*)($UNIVTOK)/sprintf("%s%s%s", ${DS}1, &s2_op(${DS}2), ${DS}3)/egs
+    %void $INPUT:substitute:assign
+
+    #substitute markers for begin/end quotes:
+    CG_SUBSTITUTE_SPEC  = s/$UNIVTOK([^$UNIVTOK]*)$UNIVTOK/\{=${qtokroot}_LQ=\}${DS}1\{=${qtokroot}_RQ=\}/gs
+    %void $INPUT:substitute:assign
+
+    #create variables defs for generated refs:
+    ${qtokroot}_LQ = @@@@
+    ${qtokroot}_ITEM =
+    ${qtokroot}_RQ = $nl
+}
+//
+
+tokenize_lists := << //
+{
+    {
+        qtokroot  = VQ_LIST_INDENT
+        qtokroot2 = VQ_LIST_ITEM
+
+        CG_SUBSTITUTE_SPEC2 = s/\t/{=${qtokroot}=}/gs
+        CG_SUBSTITUTE_SPEC  = s/^(\t\t*)\*/sprintf("%s{=${qtokroot2}=}", &s2_op("$1"))/egm
+        %void $INPUT:substitute:assign
+
+        #create variables defs for generated refs:
+        $qtokroot  := $tab
+        $qtokroot2 := *
+    }
+
+    {
+        qtokroot  = VQ_NUM_LIST_INDENT
+        qtokroot2 = VQ_NUM_LIST_ITEM
+
+        CG_SUBSTITUTE_SPEC2 = s/\t/{=${qtokroot}=}/gs
+        CG_SUBSTITUTE_SPEC  = s/^(\t\t*)#/sprintf("%s{=${qtokroot2}=}", &s2_op("$1"))/egm
+        %void $INPUT:substitute:assign
+
+        #create variables defs for generated refs:
+        $qtokroot  := $tab
+        $qtokroot2 := #
+    }
+
+    qtokroot = VQ_LIST_END
+    qtokvalue := ^\@\@
+    %call tokenize_marker
+}
+//
+
+simple_substitutions := << //
+{
+    qtokroot = VQ_DIVIDER
+    qtokvalue := ^----
+    %call tokenize_marker
+
+    qtokroot = VQ_BOLD_ITALIC
+    qtokvalue = '''''
+    %call tokenize_quotes
+
+    qtokroot = VQ_BOLD
+    qtokvalue = '''
+    %call tokenize_quotes
+
+    qtokroot = VQ_ITALIC
+    qtokvalue = ''
+    %call tokenize_quotes
+
+    qtokroot = VQ_HEADLINE_BIG
+    qtokvalue = !!!
+    %call tokenize_quotes
+
+    qtokroot = VQ_HEADLINE_MEDIUM
+    qtokvalue = !!
+    %call tokenize_quotes
+
+    qtokroot = VQ_HEADLINE_SMALL
+    qtokvalue = !
+    %call tokenize_quotes
+
+    qtokroot = VQ_UNDERLINE
+    qtokvalue = ===
+    %call tokenize_quotes
+
+    qtokroot = VQ_CENTER
+    qtokvalue = ::
+    %call tokenize_quotes
+
+    qtokroot = VQ_SUPERSCRIPT
+    qtokvalue = \^\^
+    %call tokenize_quotes
+
+    qtokroot = VQ_SUBSCRIPT
+    qtokvalue = ~~
+    %call tokenize_quotes
+
+    qtokroot = VQ_STRICKEN
+    qtokvalue = --
+    %call tokenize_quotes
+
+    #this uses sed to handle table-row formats:
+    %call tokenize_tables
+}
+//
+
+tokenize_linebreaks := << //
+#in vqwiki, a newline has significance, except within tables and other special blocks.
+#you need two newlines to force a break, or <br> at the beginning of the line.
+#other wikis ignore linebreaks, and treat them as single space.
+#
+{
+    qtokroot = VQ_BR
+
+    #strategy:  tokenize all linebreaks, and then remove them for each special case.
+    CG_SUBSTITUTE_SPEC = s/$/$UNIVTOK/gm
+    %void $INPUT:substitute:assign
+
+    #eliminate explicit breaks from list blocks:
+    CG_SUBSTITUTE_SPEC = s/^({=VQ_LIST_END=}|{=VQ_LIST_INDENT=}|{=VQ_NUM_LIST_INDENT=})([^$UNIVTOK]*)$UNIVTOK/${DS}1${DS}2/gm
+    %void $INPUT:substitute:assign
+
+    #eliminate explicit breaks from table blocks:
+    CG_SUBSTITUTE_SPEC = s/^({=VQ_TABLE_LQ=}|{=VQ_ROW_BEG=}|{=VQ_TABLE_RQ=})([^$UNIVTOK]*)${UNIVTOK}/${DS}1${DS}2/gm
+    %void $INPUT:substitute:assign
+
+    #eliminate explicit breaks from preformatted blocks:
+    CG_SUBSTITUTE_SPEC = s/^({=VQ_PREFORMATTED_LQ=}|{=VQ_PREFORMATTED_ITEM=}|{=VQ_PREFORMATTED_RQ=})([^$UNIVTOK]*)$UNIVTOK/${DS}1${DS}2/gm
+    %void $INPUT:substitute:assign
+
+    ####
+    # these require nested substitutions.  i.e., we just want to eliminate breaks within the blocks.
+    ####
+
+    {
+    #eliminate explicit breaks from multi-line code blocks.
+    #first, mark beg/end of blocks:
+    CG_SUBSTITUTE_SPEC = s/({=VQ_CODE_LQ=}|{=VQ_CODE_RQ=})/$UNIVTOK2/gs
+    %void $INPUT:substitute:assign
+
+    #eliminate line-breaks, and put back quotes:
+    CG_SUBSTITUTE_SPEC2 = s/$UNIVTOK//gs
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK2([^$UNIVTOK2]*)$UNIVTOK2/sprintf("{=VQ_CODE_LQ=}%s{=VQ_CODE_RQ=}", &s2_op(${DS}1))/egs
+    %void $INPUT:substitute:assign
+    }
+
+    {
+    #eliminate explicit breaks from multi-line html blocks:
+    #first, mark beg/end of blocks:
+    CG_SUBSTITUTE_SPEC = s/({=VQ_HTML_LQ=}|{=VQ_HTML_RQ=})/$UNIVTOK2/gs
+    %void $INPUT:substitute:assign
+
+    #eliminate line-breaks within blocks, and put back quotes:
+    CG_SUBSTITUTE_SPEC2 = s/$UNIVTOK//gs
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK2([^$UNIVTOK2]*)$UNIVTOK2/sprintf("{=VQ_HTML_LQ=}%s{=VQ_HTML_RQ=}", &s2_op(${DS}1))/egs
+    %void $INPUT:substitute:assign
+    }
+
+    {
+    #eliminate explicit breaks from multi-line java blocks:
+    #first, mark beg/end of blocks:
+    CG_SUBSTITUTE_SPEC = s/({=VQ_JAVA_LQ=}|{=VQ_JAVA_RQ=})/$UNIVTOK2/gs
+    %void $INPUT:substitute:assign
+
+    #eliminate line-breaks within blocks, and put back quotes:
+    CG_SUBSTITUTE_SPEC2 = s/$UNIVTOK//gs
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK2([^$UNIVTOK2]*)$UNIVTOK2/sprintf("{=VQ_JAVA_LQ=}%s{=VQ_JAVA_RQ=}", &s2_op(${DS}1))/egs
+    %void $INPUT:substitute:assign
+    }
+
+    ####
+    # do global patterns last:
+    ####
+
+    #eliminate breaks after dividers & headline tokens:
+    CG_SUBSTITUTE_SPEC = s/({=VQ_DIVIDER=}|{=VQ_HEADLINE_SMALL_RQ=}|{=VQ_HEADLINE_MEDIUM_RQ=}|{=VQ_HEADLINE_BIG_RQ=})$UNIVTOK/${DS}1/gs
+    %void $INPUT:substitute:assign
+
+    #we can also eliminate breaks BEFORE dividers and headlines:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK(\s+)({=VQ_DIVIDER=}|{=VQ_HEADLINE_SMALL_LQ=}|{=VQ_HEADLINE_MEDIUM_LQ=}|{=VQ_HEADLINE_BIG_LQ=})/${DS}1${DS}2/gs
+    %void $INPUT:substitute:assign
+
+    #eliminate breaks before blank lines:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK(\s+$UNIVTOK)/${DS}1/gs
+    %void $INPUT:substitute:assign
+
+    #eliminate breaks on blank lines:
+    CG_SUBSTITUTE_SPEC = s/^(\s*)$UNIVTOK/${DS}1/gm
+    %void $INPUT:substitute:assign
+
+    #replace surviving markers with VQ_BR macro:
+    CG_SUBSTITUTE_SPEC = s/$UNIVTOK/\{=${qtokroot}=\}/gs
+    %void $INPUT:substitute:assign
+
+    #create variables defs for generated macro ref:
+    ${qtokroot} =
+}
+//
+
+##################################### MAIN #####################################
+
+#set up global variables:
+%call init_globals
+
+%ifndef LINKING_PROPS_FN LINKING_PROPS_FN = linking.properties
+
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/VideoExplained.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/AnnotatedProjectXml.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/MojaveRequestTracker.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/OrderStatus.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/RussScratchPage.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/MyLeftMenu.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = regress/wikiconvert00002.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/QuickHelp.txt
+%ifndef TOPIC_INFILE  TOPIC_INFILE = vqwiki_pages/SunsetCvsServer.txt
+
+###### exit if file not found:
+%ifnot $TOPIC_INFILE:r %return -e -s 1 ${CG_INFILE}:  cannot open '$TOPIC_INFILE' - abort.
+
+#vqwiki uses "+" for space in its topic names.
+#for example:  vqwiki_pages/C+C%2B%2B.txt.  we want the "real" topic name, which
+#we will url-encode in a standard way on output:
+
+CG_SUBSTITUTE_SPEC = s/\+/ /g
+TOPIC_IN = $TOPIC_INFILE:basename:root:substitute:urldecode
+TOPIC_OUT = $TOPIC_IN:urlencode
+
+#read in the file:
+%readtemplate INPUT $TOPIC_INFILE
+
+#fix the file a bit.  NOTE:  this is required, as sed does not like DOS line endings:
+INPUT = $INPUT:tounix
+
+#first, eliminate any existing universal tokens (shouldn't be any, but you never know):
+CG_SUBSTITUTE_SPEC = s/$UNIVTOK/{=UNIVTOK=}/g
+%void $INPUT:substitute:assign
+
+#initialize LINKPROPS_STK stack:
+%call read_linking_properties
+
+######
+#first, we need to remove links & literal content from the input before we proceed to simpler constructs.
+#we do this by hex-encoding content so that it will not match remaining construct patterns.
+
+#turns out preformatted has highest priority!
+%call tokenize_preformatted
+
+%call tokenize_linkprops
+#%return -e  ##### TESTING tokenize_linkprops #####
+%call tokenize_links
+%call tokenize_literals
+######
+
+#now we can pull out topics:
+%call tokenize_topics
+
+#code-blocks have to be treated carefully:
+%call tokenize_codeblocks
+
+#as do lists..
+%call tokenize_lists
+
+#finally, perform any remaining simple substitutions:
+%call simple_substitutions
+
+#as a last step, insert formating for line-breaks.
+%call tokenize_linebreaks
+
+#ECHO_TXT = $INPUT:fixeol
+ECHO_TXT = $INPUT
+echo	/${TOPIC_OUT}.txt
+
+#this will display all of the VQ_ formatting elements generated to the output template:
+#%call show_vq_defs

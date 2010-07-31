@@ -1,0 +1,49 @@
+TESTNAME is wikiconvert00004
+GENERATING INTERMEDIATE FORM:
+echo -> ../bld/cgtstroot/wif/RussScratchPage.txt
+GENERATING NEW ORIGINAL FROM INTERMEDIATE FORM:
+echo -> ../bld/cgtstroot/vq_redux/RussScratchPage.txt
+diff -wbc ORIGINAL CONVERTED
+IGNORE *** ../vqwiki_pages/RussScratchPage.txt	2010-07-27 14:13:06.000000000 -0700
+IGNORE --- ../bld/cgtstroot/vq_redux/RussScratchPage.txt	2010-07-27 15:05:41.000000000 -0700
+***************
+*** 22,28 ****
+  
+  ''rules for headlines:  delimiters must appear at '''^''' and '''$''' of line''
+  
+! ups:1ZA2F8570200108385
+  ups: fedx:
+  what about literals in urls?
+  http://foohttp://blah
+--- 22,28 ----
+  
+  ''rules for headlines:  delimiters must appear at '''^''' and '''$''' of line''
+  
+! [<html>]<A HREF="http://wwwapps.ups.com/WebTracking/processInputRequest?sort_by=status&tracknums_displayed=1&TypeOfInquiryNumber=T&loc=en_US&InquiryNumber1=1ZA2F8570200108385&track.x=0&track.y=0">ups:1ZA2F8570200108385</A>[</html>]
+  ups: fedx:
+  what about literals in urls?
+  http://foohttp://blah
+***************
+*** 40,46 ****
+  __http://www.yahoo.com__
+  __  http://www.yahoo.com  __  (with spaces)
+  
+! fedx:__ThisTopic__
+  
+  0fedx:__ThisTopic__
+  
+--- 40,46 ----
+  __http://www.yahoo.com__
+  __  http://www.yahoo.com  __  (with spaces)
+  
+! [<html>]<A HREF="http://www.fedex.com/Tracking?tracknumbers=__ThisTopic__">fedx:__ThisTopic__</A>[</html>]
+  
+  0fedx:__ThisTopic__
+  
+***************
+*** 109,112 ****
+  @@
+  
+  http://grinder.sfbay/whiteboard/jsp/Wiki?InstallGraphviz
+- 
+--- 109,111 ----
