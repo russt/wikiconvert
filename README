@@ -1,5 +1,5 @@
-This is a little project to convert vqwiki (<http://www.vqwiki.org/>) source content
-to MediaWiki (<http://www.mediawiki.org/>) content.
+This is a little project to convert vqwiki (http://www.vqwiki.org/) source content
+to MediaWiki (http://www.mediawiki.org/) content.
 
 The first question to answer, is why would anyone need to do this?
 
@@ -21,7 +21,7 @@ convert what I call "wiki intermediate form" (wif) to some other syntax:
     o wif2vq.cg    - convert from wif to vqwiki syntax (especially trivial!)
 
 This is the idea behind many wiki translators, and indeed there is a standard
-that has been developed called Creole (<http://www.wikicreole.org/>) as an attempt
+that has been developed called Creole (http://www.wikicreole.org/) as an attempt
 to standardize wiki syntaxes, or at the very least, provide a method that wiki
 implementors can use to translate to a standardized intermediate form.
 
@@ -84,14 +84,14 @@ to just try a couple of your topics to verify the translator.
 
 Second, you will need an instance of a wiki that purports to understand MediaWiki syntax, in
 order to observe the results of the translation.  In my case, I used a lovely little wiki called
-JAMWiki (<http://jamwiki.org/>), since it is fully java and can be dropped into a Tomcat
+JAMWiki (http://jamwiki.org/), since it is fully java and can be dropped into a Tomcat
 instance and be up and running in a few minutes.  If you are already running vqwiki under Tomcat,
 then this is a nice setup.
 
 AUTOMATIC POSTING VIA CURL TO JAMWIKI
 
 I have enclosed a script "editwiki.cg" which will post your new MediaWiki content directly
-to a JAMWiki instance.  I have used curl to do the heavy lifting (<http://curl.haxx.se/>).
+to a JAMWiki instance.  I have used curl to do the heavy lifting (http://curl.haxx.se/).
 
 If you do not want to try this right away, then just comment out the line that calls
 editwiki.cg in the convert.sh driver.
