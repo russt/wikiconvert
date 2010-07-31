@@ -50,11 +50,13 @@ the pattern (for those familiar with the ex/vi/ed/vim class editors):
 Implementing such a construct in Perl usually involves reading in a file,
 and using the grep() function with a substitution pattern.
 
-Here is how you do it in Cado:
+Here is one way you can do it in Cado:
 
-    #eliminate line-breaks within blocks, and put back quotes:
+    #eliminate line-breaks within blocks, and put back quote tokens:
     CG_SUBSTITUTE_SPEC2 = s/$UNIVTOK//gs
     CG_SUBSTITUTE_SPEC = s/$UNIVTOK2([^$UNIVTOK2]*)$UNIVTOK2/sprintf("{=VQ_JAVA_LQ=}%s{=VQ_JAVA_RQ=}", &s2_op(${DS}1))/egs
+
+    #apply the substitution to the input:
     %void $INPUT:substitute:assign
 
 The trick here is to call the secondary substitution operator (:s2 op, called directly as
@@ -79,8 +81,8 @@ from your database.  I.e., fire up a file-base vqwiki and then just cut/paste a 
 pages from your original vqwiki instance.
 
 Once you have your content in some files, examine the script "convert.sh", which converts a
-list of topics that you provide.  Note all test topics I have commented out - you can modify the script
-to just try a couple of your topics to verify the translator.
+list of topics that you provide.  Note all the test topics I have commented out - you can modify
+the script to just try a couple of your topics to verify the translator.
 
 Second, you will need an instance of a wiki that purports to understand MediaWiki syntax, in
 order to observe the results of the translation.  In my case, I used a lovely little wiki called
