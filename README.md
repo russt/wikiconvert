@@ -58,12 +58,14 @@ and using the grep() function with a substitution pattern.
 
 Here is one way you can do it in Cado:
 
-    #eliminate line-breaks within blocks, and put back quote tokens:
-    CG_SUBSTITUTE_SPEC2 = s/$UNIVTOK//gs
-    CG_SUBSTITUTE_SPEC = s/$UNIVTOK2([^$UNIVTOK2]*)$UNIVTOK2/sprintf("{=VQ_JAVA_LQ=}%s{=VQ_JAVA_RQ=}", &s2_op(${DS}1))/egs
+```perl
+#eliminate line-breaks within blocks, and put back quote tokens:
+CG_SUBSTITUTE_SPEC2 = s/$UNIVTOK//gs
+CG_SUBSTITUTE_SPEC = s/$UNIVTOK2([^$UNIVTOK2]*)$UNIVTOK2/sprintf("{=VQ_JAVA_LQ=}%s{=VQ_JAVA_RQ=}", &s2_op(${DS}1))/egs
 
-    #apply the substitution to the input:
-    %void $INPUT:substitute:assign
+#apply the substitution to the input:
+%void $INPUT:substitute:assign
+```
 
 The trick here is to call the secondary substitution operator (:s2 op, called directly
 as a Perl function: &s2_op()) directly from the replacement expression held in
